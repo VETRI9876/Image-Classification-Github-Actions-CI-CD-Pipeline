@@ -14,41 +14,52 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Log in to Amazon ECR
+      # Step 2: Set up AWS CLI
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Step 3: Log in to Amazon ECR
       - name: Log in to Amazon ECR
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
 
-      # Step 3: Build the Docker image
+      # Step 4: Build the Docker image
       - name: Build Docker Image
         run: |
           docker build -t myrepo .
 
-      # Step 4: Tag the Docker image
+      # Step 5: Tag the Docker image
       - name: Tag Docker Image
         run: |
           docker tag myrepo:latest 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
 
-      # Step 5: Push Docker image to AWS ECR
+      # Step 6: Push Docker image to AWS ECR
       - name: Push Docker Image to ECR
         run: |
           docker push 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
 
-      # Step 6: Deploy to Lightsail EC2
+      # Step 7: Deploy to EC2 instance
       - name: Deploy to Ubuntu EC2
         env:
           LIGHTSAIL_KEY: ${{ secrets.EC2_PEM_FILE }}
         run: |
+          # Save the private key to a file
           echo "${{ secrets.EC2_PEM_FILE }}" > EC2_PEM_FILE.pem
           chmod 600 EC2_PEM_FILE.pem
 
+          # SSH into EC2 and deploy the image
           ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.236.39.13 << 'EOF'
+            # Log in to ECR on EC2
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
+            # Pull the Docker image from ECR
             docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            # Stop and remove any existing container with the same name
             docker stop myapp || true
             docker rm myapp || true
+            # Run the new container
             docker run -d --name myapp -p 80:80 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
