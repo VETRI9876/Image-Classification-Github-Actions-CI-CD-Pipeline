@@ -1,0 +1,6 @@
+tensorflow==2.15.0
+ipython==8.31.0
+Flask==2.3.3
+Werkzeug
+numpy
+Pillow==9.1.0

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Result</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card">
+            <div class="card-header">
+                <h3>Prediction Result</h3>
+            </div>
+            <div class="card-body">
+                <h5>Animal Name: {{ result }}</h5>
+                
+                <!-- Display the uploaded image -->
+                <img src="{{ url_for('static', filename=filename) }}" alt="Uploaded Image" class="img-fluid" width="300">
+
+                <h6 class="mt-3">Prediction Probabilities:</h6>
+                <div class="list-group">
+                    {% for class_name, prob in prob_dict.items() %}
+                        <div class="list-group-item">
+                            <span>{{ class_name }}:</span>
+                            <div class="progress mt-2">
+                                <div class="progress-bar" role="progressbar" style="width: {{ prob }}%" aria-valuenow="{{ prob }}" aria-valuemin="0" aria-valuemax="100">{{ prob | round(2) }}%</div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <h5 class="mt-4">Confidence Level: {{ confidence_level | round(2) }}%</h5>
+
+                <h6 class="mt-3">Raw Model Predictions:</h6>
+                <pre>{{ prob_dict }}</pre> <!-- Print raw probabilities for debugging -->
+
+                <a href="/" class="btn btn-secondary btn-block mt-3">Upload New Image</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
