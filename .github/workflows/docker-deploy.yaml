@@ -57,6 +57,8 @@ jobs:
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
             # Pull the Docker image from ECR
             docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
-            # Run the new container without any specific name
-            docker run -d -p 8080:80 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            # Stop any running container using the same image
+            docker ps -q --filter "ancestor=047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker stop
+            # Run the new container and map port 5000 to port 8080
+            docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
