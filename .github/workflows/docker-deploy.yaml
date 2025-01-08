@@ -25,6 +25,7 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-east-1  # Optional, specify the region if necessary
 
     # Build Docker image
     - name: Build Docker image
@@ -61,6 +62,12 @@ jobs:
           sudo apt install unzip -y
           unzip awscliv2.zip
           sudo ./aws/install
+
+          # Configure AWS CLI with credentials on EC2
+          echo "[default]" > ~/.aws/config
+          echo "aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/config
+          echo "aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/config
+          echo "region = us-east-1" >> ~/.aws/config
 
           # Authenticate Docker to ECR
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
