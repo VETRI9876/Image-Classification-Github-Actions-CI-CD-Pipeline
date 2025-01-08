@@ -50,25 +50,6 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_PEM_FILE }}
         script: |
-          # Install Docker if not already installed
-          sudo apt update
-          sudo apt install -y docker.io
-          sudo systemctl start docker
-          sudo systemctl enable docker
-
-          # Install AWS CLI if not already installed
-          sudo apt remove awscli -y
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          sudo apt install unzip -y
-          unzip awscliv2.zip
-          sudo ./aws/install
-
-          # Set AWS credentials for EC2
-          echo "[default]" > ~/.aws/config
-          echo "aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/config
-          echo "aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/config
-          echo "region = us-east-1" >> ~/.aws/config
-
           # Authenticate Docker to ECR
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
 
