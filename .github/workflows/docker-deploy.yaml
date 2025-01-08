@@ -1,0 +1,84 @@
+name: Deploy Docker App on Lightsail
+
+on:
+  push:
+    branches:
+      - main  # Trigger pipeline on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code from repository
+      uses: actions/checkout@v2
+
+    - name: Set up SSH key for Lightsail
+      run: |
+        echo "$LIGHTSAIL_KEY" > lightsail-key.pem
+        chmod 600 lightsail-key.pem
+      env:
+        LIGHTSAIL_KEY: ${{ secrets.LIGHTSAIL_KEY }}
+
+    - name: Set up AWS CLI
+      run: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+        aws --version
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-east-1
+
+    - name: Attach ECR Policy to IAM Role
+      run: |
+        aws iam put-role-policy --role-name LightsailInstanceRole --policy-name ECRPolicy --policy-document file://ecr-policy.json
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-east-1
+
+    - name: Deploy to Lightsail instance
+      run: |
+        ssh -o StrictHostKeyChecking=no -i lightsail-key.pem ubuntu@44.201.63.63 << 'EOF'
+          # Update the package list and install dependencies
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl apt-transport-https ca-certificates software-properties-common
+
+          # Install Docker
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sudo sh get-docker.sh
+          
+          # Add the user to the Docker group to grant permission to interact with Docker
+          sudo usermod -aG docker $USER
+          
+          # Restart the session to apply group changes
+          newgrp docker
+
+          # Install AWS CLI v2 (latest)
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          
+          # Log in to AWS ECR (ensure the IAM role has ecr:GetAuthorizationToken permission)
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
+          
+          # Pull the Docker image from ECR
+          docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+
+          # Stop and remove any existing container if it exists
+          docker ps -a | grep -q myapp && docker stop myapp && docker rm myapp || true
+
+          # Run the Docker container on port 5000
+          docker run -d --name myapp -p 5000:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+
+          # Check container logs to diagnose issues
+          docker logs myapp
+
+          # Check container status
+          docker ps -a
+        EOF
+
+    - name: Clean up Lightsail key
+      run: rm -f lightsail-key.pem
