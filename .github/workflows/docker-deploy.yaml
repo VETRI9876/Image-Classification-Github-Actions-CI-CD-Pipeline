@@ -14,7 +14,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up AWS CLI
+      # Step 2: Install Docker and AWS CLI prerequisites
+      - name: Install Docker and AWS CLI prerequisites
+        run: |
+          sudo apt update
+          sudo apt install -y docker.io
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          sudo usermod -aG docker $USER
+          docker --version
+          sudo apt remove awscli -y
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          sudo apt install unzip -y
+          unzip awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
+      # Step 3: Set up AWS CLI
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -22,37 +38,37 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Step 3: Log in to Amazon ECR
+      # Step 4: Log in to Amazon ECR
       - name: Log in to Amazon ECR
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
 
-      # Step 4: Build the Docker image
+      # Step 5: Build the Docker image
       - name: Build Docker Image
         run: |
           docker build -t myrepo .
 
-      # Step 5: Tag the Docker image
+      # Step 6: Tag the Docker image
       - name: Tag Docker Image
         run: |
           docker tag myrepo:latest 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
 
-      # Step 6: Push Docker image to AWS ECR
+      # Step 7: Push Docker image to AWS ECR
       - name: Push Docker Image to ECR
         run: |
           docker push 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
 
-      # Step 7: Deploy to EC2 instance
+      # Step 8: Deploy to EC2 instance
       - name: Deploy to Ubuntu EC2
         env:
-          LIGHTSAIL_KEY: ${{ secrets.EC2_PEM_FILE }}
+          EC2_KEY: ${{ secrets.EC2_PEM_FILE }}
         run: |
           # Save the private key to a file
           echo "${{ secrets.EC2_PEM_FILE }}" > EC2_PEM_FILE.pem
           chmod 600 EC2_PEM_FILE.pem
 
           # SSH into EC2 and deploy the image
-          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@18.212.60.5 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@54.89.249.132 << 'EOF'
             # Log in to ECR on EC2
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
             # Pull the Docker image from ECR
