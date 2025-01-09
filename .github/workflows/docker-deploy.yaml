@@ -1,98 +1,79 @@
-name: CI/CD Pipeline for Docker Deployment
+name: Deploy Docker Image to EC2
 
 on:
   push:
     branches:
-      - main  # Trigger the pipeline on push to the main branch
+      - main  # Adjust to your main branch
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout the repository
+      # Checkout the code repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
-      # Step 2: Check and install Docker and AWS CLI if not installed
-      - name: Install Docker and AWS CLI prerequisites if not installed
-        run: |
-          # Check if Docker is installed
-          if ! command -v docker &> /dev/null; then
-            echo "Docker not found. Installing Docker..."
-            sudo apt-get update
-            sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-            sudo apt-get update
-            sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker $USER
-            docker --version
-          else
-            echo "Docker is already installed."
-          fi
-
-          # Check if AWS CLI v2 is installed
-          if ! command -v aws &> /dev/null; then
-            echo "AWS CLI not found. Installing AWS CLI v2..."
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            sudo apt-get install -y unzip
-            unzip awscliv2.zip
-            sudo ./aws/install --update
-            aws --version
-          else
-            echo "AWS CLI is already installed."
-          fi
-
-      # Step 3: Set up AWS CLI
-      - name: Set up AWS CLI
+      # Set up AWS credentials
+      - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Step 4: Log in to Amazon ECR
-      - name: Log in to Amazon ECR
+      # Save the private key to a file
+      - name: Save EC2 private key
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
-
-      # Step 5: Build the Docker image
-      - name: Build Docker Image
-        run: |
-          docker build -t myrepo .
-
-      # Step 6: Tag the Docker image
-      - name: Tag Docker Image
-        run: |
-          docker tag myrepo:latest 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
-
-      # Step 7: Push Docker image to AWS ECR
-      - name: Push Docker Image to ECR
-        run: |
-          docker push 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
-
-      # Step 8: Deploy to EC2 instance
-      - name: Deploy to Ubuntu EC2
-        env:
-          EC2_KEY: ${{ secrets.EC2_PEM_FILE }}
-        run: |
-          # Save the private key to a file
           echo "${{ secrets.EC2_PEM_FILE }}" > EC2_PEM_FILE.pem
           chmod 600 EC2_PEM_FILE.pem
 
-          # SSH into EC2 and deploy the image
+      # SSH into EC2 and deploy the image
+      - name: Deploy to EC2
+        run: |
           ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@52.91.206.85 << 'EOF'
+            # Update the system and install Docker and AWS CLI if not installed
+            sudo apt-get update
+            sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common unzip
+
+            # Install Docker
+            if ! command -v docker &> /dev/null; then
+              echo "Docker not found. Installing Docker..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sudo sh get-docker.sh
+              sudo systemctl start docker
+              sudo systemctl enable docker
+            else
+              echo "Docker is already installed."
+            fi
+
+            # Install AWS CLI v2
+            if ! command -v aws &> /dev/null; then
+              echo "AWS CLI not found. Installing AWS CLI..."
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip
+              sudo ./aws/install
+            else
+              echo "AWS CLI is already installed."
+            fi
+
             # Log in to ECR on EC2
-            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ***.dkr.ecr.us-east-1.amazonaws.com
+
             # Pull the Docker image from ECR
-            docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            docker pull ***.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+
             # Stop any running container using the same image
-            docker ps -q --filter "ancestor=047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker stop
+            docker ps -q --filter "ancestor=***.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker stop
+
             # Remove stopped containers (optional cleanup)
-            docker ps -aq --filter "ancestor=047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker rm
+            docker ps -aq --filter "ancestor=***.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker rm
+
             # Run the new container and map port 5000 to port 8080
-            docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            docker run -d -p 8080:5000 ***.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EC2_KEY: ${{ secrets.EC2_PEM_FILE }}
