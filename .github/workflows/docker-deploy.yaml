@@ -83,7 +83,7 @@ jobs:
           chmod 600 EC2_PEM_FILE.pem
 
           # SSH into EC2 and deploy the image
-          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@44.203.152.156 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.80.133.177 << 'EOF'
             # Log in to ECR on EC2
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
             # Pull the Docker image from ECR
