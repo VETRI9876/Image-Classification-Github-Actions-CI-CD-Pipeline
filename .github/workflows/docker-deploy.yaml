@@ -18,12 +18,11 @@ jobs:
       - name: Install Docker
         run: |
           sudo apt-get update
-          udo apt-get install -y docker.io || (sudo apt-get remove --purge containerd.io && sudo apt-get install -y docker.io)
+          sudo apt-get install -y docker.io || (sudo apt-get remove --purge containerd.io && sudo apt-get install -y docker.io)
           sudo systemctl start docker
           sudo systemctl enable docker
           sudo usermod -aG docker $USER
           docker --version
-          sudo usermod -aG docker $USER
           newgrp docker
 
       # Step 3: Install AWS CLI
