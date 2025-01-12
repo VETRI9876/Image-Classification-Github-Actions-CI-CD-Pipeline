@@ -86,6 +86,8 @@ jobs:
             # Log out and log back in to apply group changes
             newgrp docker
             docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            # Stop any running container using the same image
+            docker ps -q --filter "ancestor=047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker stop
             # Run the new container and map port 5000 to port 8080
             docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
