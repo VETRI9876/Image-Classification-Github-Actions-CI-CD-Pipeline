@@ -69,7 +69,7 @@ jobs:
       # Step 11: Deploy the Docker image to the EC2 instance
       - name: Deploy to EC2 Instance
         env:
-          LIGHTSAIL_KEY: ${{ secrets.EC2_PEM_FILE }}
+          EC2_PEM_FILE: ${{ secrets.EC2_PEM_FILE }}  # Assuming the PEM key is stored in GitHub Secrets
         run: |
           # Save the private key to a file
           echo "${{ secrets.EC2_PEM_FILE }}" > EC2_PEM_FILE.pem
