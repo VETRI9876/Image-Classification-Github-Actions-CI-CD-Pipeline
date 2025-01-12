@@ -79,10 +79,10 @@ jobs:
           chmod 600 EC2_PEM_FILE.pem
 
           # SSH into EC2 and deploy the image
-          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.80.133.177 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@184.73.8.32 << 'EOF'
             sudo usermod -aG docker ubuntu
             # Pull the docker Image from the ECR Repo
             docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
             # Run the new container and map port 5000 to port 8080
-            docker run -d -p 8081:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
