@@ -25,10 +25,14 @@ jobs:
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io
           sudo systemctl start docker
           sudo systemctl enable docker
+
+      # Step 3: Grant Docker Permissions
+      - name: Grant Docker Permissions
+        run: |
           sudo usermod -aG docker $USER
           newgrp docker
 
-      # Step 3: Install AWS CLI if not installed
+      # Step 4: Install AWS CLI if not installed
       - name: Install AWS CLI
         run: |
           if ! command -v aws &> /dev/null; then
@@ -41,7 +45,7 @@ jobs:
             echo "AWS CLI is already installed"
           fi
 
-      # Step 4: Configure AWS CLI credentials
+      # Step 5: Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -49,24 +53,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Step 5: Log in to Amazon ECR
+      # Step 6: Log in to Amazon ECR
       - name: Log in to Amazon ECR
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
 
-      # Step 6: Build the Docker image
+      # Step 7: Build the Docker image
       - name: Build Docker Image
-        run: docker build -t myrepo .
+        run: sudo docker build -t myrepo .
 
-      # Step 7: Tag the Docker image
+      # Step 8: Tag the Docker image
       - name: Tag Docker Image
-        run: docker tag myrepo:latest 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+        run: sudo docker tag myrepo:latest 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
 
-      # Step 8: Push Docker image to AWS ECR
+      # Step 9: Push Docker image to AWS ECR
       - name: Push Docker Image to ECR
-        run: docker push 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+        run: sudo docker push 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
 
-      # Step 9: Deploy the Docker image to the EC2 instance
+      # Step 10: Deploy the Docker image to the EC2 instance
       - name: Deploy to EC2 Instance
         env:
           LIGHTSAIL_KEY: ${{ secrets.EC2_PEM_FILE }}
@@ -75,12 +79,11 @@ jobs:
           echo "${{ secrets.EC2_PEM_FILE }}" > EC2_PEM_FILE.pem
           chmod 600 EC2_PEM_FILE.pem
 
-          # SSH into EC2 and set up Docker and AWS CLI if needed
+          # SSH into EC2 and deploy the container
           ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.80.133.177 << 'EOF'
-            # Update the system
             sudo apt-get update -y
 
-            # Install Docker if not installed
+            # Install Docker if not already installed
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
               sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
@@ -92,24 +95,10 @@ jobs:
               sudo systemctl enable docker
             fi
 
-            # Install AWS CLI if not installed
-            if ! command -v aws &> /dev/null; then
-              echo "Installing AWS CLI..."
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              sudo apt-get install -y unzip
-              unzip awscliv2.zip
-              sudo ./aws/install
-            fi
-
             # Log in to ECR
             aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 047719644852.dkr.ecr.us-east-1.amazonaws.com
 
-            # Pull the latest Docker image
-            docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
-
-            # Stop any existing container using the same image
-            docker ps -q --filter "ancestor=047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker stop
-
-            # Run the new container and map port 5000 to port 8080
-            docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            # Pull and run the container
+            sudo docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            sudo docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
