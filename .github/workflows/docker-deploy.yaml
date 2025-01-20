@@ -80,7 +80,7 @@ jobs:
           chmod 600 EC2_PEM_FILE.pem
 
           # SSH into EC2 and deploy the image
-          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.80.133.177 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.86.109.118 << 'EOF'
             # Add ubuntu user to docker group if not already added
             sudo usermod -aG docker ubuntu
             # Log out and log back in to apply group changes
