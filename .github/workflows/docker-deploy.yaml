@@ -23,9 +23,7 @@ jobs:
             sudo apt-get install -y docker.io || (sudo apt-get remove --purge containerd.io && sudo apt-get install -y docker.io)
             sudo systemctl start docker
             sudo systemctl enable docker
-            sudo usermod -aG docker $USER
             docker --version
-            newgrp docker
           else
             echo "Docker is already installed, skipping installation."
           fi
@@ -81,13 +79,28 @@ jobs:
 
           # SSH into EC2 and deploy the image
           ssh -o StrictHostKeyChecking=no -i EC2_PEM_FILE.pem ubuntu@3.86.109.118 << 'EOF'
-            # Add ubuntu user to docker group if not already added
+            # Update packages
+            sudo apt-get update
+
+            # Install Docker if not installed
+            if ! command -v docker &> /dev/null; then
+              echo "Docker not found, installing..."
+              sudo apt-get install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+            fi
+
+            # Create the docker group if it does not exist
+            if ! getent group docker > /dev/null; then
+              sudo groupadd docker
+            fi
+
+            # Add ubuntu user to the docker group
             sudo usermod -aG docker ubuntu
-            # Log out and log back in to apply group changes
-            newgrp docker
-            docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
-            # Stop any running container using the same image
-            docker ps -q --filter "ancestor=047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest" | xargs -r docker stop
+
+            # Pull the latest Docker image
+            sudo docker pull 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            
             # Run the new container and map port 5000 to port 8080
-            docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
+            sudo docker run -d -p 8080:5000 047719644852.dkr.ecr.us-east-1.amazonaws.com/myrepo:latest
           EOF
